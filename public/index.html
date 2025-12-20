@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truco Vidas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="lobby-screen">
+        <div class="login-box">
+            <h1>TRUCO VIDAS</h1>
+            <div class="avatar-grid">
+                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" class="avatar-option selected">
+                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka" class="avatar-option">
+                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Bob" class="avatar-option">
+            </div>
+            <input type="text" id="username" placeholder="Seu Apelido" maxlength="10">
+            <button onclick="joinGame()" class="btn-primary">ENTRAR</button>
+        </div>
+        <div id="waiting-area" style="display:none;">
+            <h2>Sala de Espera</h2>
+            <div id="players-list"></div>
+            <button id="btn-ready" onclick="toggleReady()" class="btn-secondary">PRONTO?</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" style="display:none; position:fixed; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <h1 style="font-size: 3em; color: gold;">FIM DE JOGO</h1>
+        <h2 id="winner-name"></h2>
+        <br>
+        <button onclick="requestRestart()" class="btn-primary" style="width: 200px; font-size: 1.2em;">JOGAR NOVAMENTE</button>
+    </div>
+
+    <div id="game-screen" style="display:none;">
+        <div id="turn-notification" class="notification">Aguardando...</div>
+
+        <div class="table-felt" id="table-container">
+            <div class="center-area"><div id="vira-slot"></div></div>
+        </div>
+        
+        <div id="my-hud">
+            <div id="bet-controls" style="display:none;">
+                <p>Quantas você faz?</p>
+                <div id="bet-options" class="bet-buttons-container"></div>
+            </div>
+
+            <div id="my-info-bar">
+                <span id="my-lives"></span> | 
+                <span id="my-bet-status"></span>
+            </div>
+            <div id="my-hand"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
