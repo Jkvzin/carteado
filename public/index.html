@@ -61,12 +61,30 @@
         </div>
     </div>
 
-    <div id="game-over-screen" style="display:none; position:fixed; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; flex-direction:column; align-items:center; justify-content:center; color:white;">
-        <h1 style="font-size: 3em; color: gold;">FIM DE JOGO</h1>
-        <h2 id="winner-name"></h2>
-        <br>
-        <button onclick="requestRestart()" class="btn-primary" style="width: 200px; font-size: 1.2em;">JOGAR NOVAMENTE</button>
+    <div id="game-over-screen" style="display:none; position:fixed; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; flex-direction:column; align-items:center; justify-content:center; color:white; text-align:center;">
+        
+        <h1 style="font-size: 4em; color: gold; text-shadow: 0 0 20px orange; margin-bottom: 20px;">🏆 CAMPEÃO 🏆</h1>
+        
+        <img id="winner-avatar" src="" style="width: 200px; height: 200px; border-radius: 50%; border: 5px solid gold; box-shadow: 0 0 50px gold; margin-bottom: 20px;">
+        
+        <h2 id="winner-name" style="font-size: 3em; margin: 0;"></h2>
+        
+        <h3 style="font-size: 1.5em; color: #ccc; margin-top: 10px;">É O MELHOR DE TODOS!</h3>
+        
+        <br><br>
+        <button onclick="requestRestart()" class="btn-primary" style="width: 250px; font-size: 1.2em; animation: pulse 1s infinite;">JOGAR NOVAMENTE</button>
     </div>
+
+    <div id="music-control" onclick="toggleMusic()" style="position:fixed; bottom:15px; left:15px; z-index:5000; cursor:pointer; opacity:0.7; font-size:24px;">
+        🔈 </div>
+
+    <audio id="bg-music" loop>
+        <source src="sounds/background.mp3" type="audio/mpeg">
+    </audio>
+
+    <audio id="victory-music">
+        <source src="sounds/victory.mp3" type="audio/mpeg">
+    </audio>
 
     <div id="game-screen" style="display:none;">
         <div id="turn-notification" class="notification">Aguardando...</div>

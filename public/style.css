@@ -179,3 +179,16 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
     transform: scale(1.1);
     box-shadow: 0 0 10px #00ff00;
 }
+
+/* Animação do botão Jogar Novamente */
+@keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+    70% { transform: scale(1.05); box-shadow: 0 0 10px 10px rgba(255, 215, 0, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+}
+
+/* Controle de Música */
+#music-control:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}

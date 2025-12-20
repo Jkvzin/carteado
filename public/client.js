@@ -1,11 +1,15 @@
 const socket = io();
-let selectedAvatar = 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix';
 
+// Avatar padrão (caso a pessoa não clique em nada)
+let selectedAvatar = 'avatares/adam.jpg'; 
+
+// Lógica de seleção de avatar no clique
 document.querySelectorAll('.avatar-option').forEach(img => {
     img.onclick = () => {
         document.querySelectorAll('.avatar-option').forEach(i => i.classList.remove('selected'));
         img.classList.add('selected');
-        selectedAvatar = img.src;
+        // Pega o caminho da imagem clicada
+        selectedAvatar = img.getAttribute('src');
     };
 });
 
@@ -26,11 +30,19 @@ socket.on('game_update', (state) => {
     const myIdx = state.players.findIndex(p => p.id === socket.id);
     const me = state.players[myIdx];
 
-    // LOBBY
+    // --- LOBBY ---
     if (state.status === 'LOBBY') {
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('lobby-screen').style.display = 'flex';
         document.getElementById('game-over-screen').style.display = 'none';
+        
+        // Se voltamos pro lobby, para a música da vitória
+        const vicAudio = document.getElementById('victory-music');
+        if(!vicAudio.paused) { vicAudio.pause(); vicAudio.currentTime = 0; }
+        
+        // Se a música de fundo estava ligada, volta a tocar
+        const bgAudio = document.getElementById('bg-music');
+        if (isMusicPlaying && bgAudio.paused) bgAudio.play();
 
         const list = document.getElementById('players-list');
         list.innerHTML = state.players.map(p => `
@@ -47,18 +59,47 @@ socket.on('game_update', (state) => {
             btn.className = me.isReady ? "btn-ready-on" : "btn-secondary";
         }
     } 
-    // GAME OVER
+    
+    // --- FIM DE JOGO (TELA DE CAMPEÃO) ---
     else if (state.status === 'GAME_OVER') {
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('game-over-screen').style.display = 'flex';
-        const winnerName = state.winner ? state.winner.name : "Ninguém";
-        document.getElementById('winner-name').innerText = `Vencedor: ${winnerName} 🎉`;
+        
+        // Para música de fundo
+        const bgAudio = document.getElementById('bg-music');
+        bgAudio.pause();
+
+        // Toca música da vitória
+        const vicAudio = document.getElementById('victory-music');
+        if (vicAudio.paused) {
+            vicAudio.volume = 1.0;
+            vicAudio.play().catch(e => console.log("Erro som vitória:", e));
+        }
+
+        // Mostra dados do vencedor
+        if (state.winner) {
+            document.getElementById('winner-name').innerText = state.winner.name;
+            document.getElementById('winner-avatar').src = state.winner.avatar;
+            document.getElementById('winner-avatar').style.display = 'block';
+        } else {
+            document.getElementById('winner-name').innerText = "Ninguém";
+            document.getElementById('winner-avatar').style.display = 'none';
+        }
     }
-    // JOGO
+    
+    // --- JOGO RODANDO ---
     else {
         document.getElementById('lobby-screen').style.display = 'none';
         document.getElementById('game-over-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'block';
+        
+        // Garante que música de vitória parou
+        const vicAudio = document.getElementById('victory-music');
+        if(!vicAudio.paused) { vicAudio.pause(); vicAudio.currentTime = 0; }
+
+        // Garante que música de fundo toca (se ativada)
+        const bgAudio = document.getElementById('bg-music');
+        if (isMusicPlaying && bgAudio.paused) bgAudio.play();
         
         renderTable(state);
         
@@ -97,6 +138,26 @@ socket.on('game_update', (state) => {
     }
 });
 
+// Mapas para desenhar o texto bonito caso a imagem falhe
+const suitSymbols = { 'ouros': '♦', 'espadas': '♠', 'copas': '♥', 'paus': '♣' };
+const suitColors = { 'ouros': 'suit-red', 'copas': 'suit-red', 'espadas': 'suit-black', 'paus': 'suit-black' };
+
+// NOVA FUNÇÃO: Gera HTML com imagem E texto de fundo (camadas)
+function createCardInnerHTML(card) {
+    const imgPath = `images/${card.suit}_${card.value}.png`;
+    const symbol = suitSymbols[card.suit] || '';
+    const colorClass = suitColors[card.suit] || 'suit-black';
+    
+    return `
+        <div class="card-fallback ${colorClass}">
+            ${card.value}<br>
+            <span style="font-size:24px">${symbol}</span>
+        </div>
+        
+        <img src="${imgPath}" class="card-img-layer" onerror="this.style.display='none'">
+    `;
+}
+
 function renderBetButtons(maxBet, forbiddenVal) {
     const opts = document.getElementById('bet-options');
     opts.innerHTML = '';
@@ -116,14 +177,6 @@ function renderBetButtons(maxBet, forbiddenVal) {
 
 function updateNotification(msg) {
     document.getElementById('turn-notification').innerText = msg;
-}
-
-function getCardContent(card) {
-    const imgPath = `images/${card.suit}_${card.value}.png`;
-    return { 
-        style: `background-image: url('${imgPath}');`, 
-        text: `<span style="font-size:10px; position:absolute; top:2px; left:2px;">${card.value}</span>` 
-    };
 }
 
 function renderTable(state) {
@@ -161,43 +214,44 @@ function renderTable(state) {
         
         const specLabel = p.isSpectator ? '<div style="font-size:10px; color:cyan;">(Olhando)</div>' : '';
 
-        // --- NOVO: LÓGICA DAS VIDAS ---
+        // VIDAS COM CORAÇÕES
         let livesDisplay = '';
         if (!p.isSpectator) {
             if (p.isEliminated) {
-                livesDisplay = '<div class="mini-lives">💀</div>'; // Caveira se morreu
+                livesDisplay = '<div class="mini-lives">💀</div>'; 
             } else {
-                // Repete o coração baseado no número de vidas (ex: ❤️❤️❤️)
                 livesDisplay = `<div class="mini-lives">${'❤️'.repeat(p.lives)}</div>`;
             }
         }
-        // ------------------------------
 
         slot.innerHTML = `
-            ${livesDisplay} <img src="${p.avatar}" class="avatar-img">
+            ${livesDisplay} 
+            <img src="${p.avatar}" class="avatar-img">
             <div style="text-shadow: 1px 1px 2px black; font-weight:bold; font-size: 14px;">${p.name}</div>
             ${statsLine}
             ${specLabel}
         `;
         container.appendChild(slot);
         
-        // Renderiza carta jogada (igual antes)
+        // CARTA JOGADA
         const played = state.tableCards.find(tc => tc.playerId === p.id);
         if (played) {
-            const content = getCardContent(played.card);
             const c = document.createElement('div'); 
             c.className = 'card played-card';
-            c.setAttribute('style', content.style + `position:absolute; left:${50 + 15 * Math.cos(angle)}%; top:${50 + 15 * Math.sin(angle)}%;`);
-            if(!content.style.includes('http') && !content.style.includes('url')) c.innerHTML = played.card.value; 
+            // USANDO A NOVA LÓGICA DE CARTAS
+            c.innerHTML = createCardInnerHTML(played.card);
+            
+            c.style.position = 'absolute';
+            c.style.left = (50 + 15 * Math.cos(angle)) + '%';
+            c.style.top = (50 + 15 * Math.sin(angle)) + '%';
             container.appendChild(c);
         }
     });
 
-    // Renderiza Vira (igual antes)
+    // VIRA
     const viraSlot = document.getElementById('vira-slot');
     if(state.vira) {
-        const content = getCardContent(state.vira);
-        viraSlot.innerHTML = `<div class="card" style="${content.style}">${!content.style.includes('url') ? state.vira.value : ''}</div>`;
+        viraSlot.innerHTML = `<div class="card">${createCardInnerHTML(state.vira)}</div>`;
     } else {
         viraSlot.innerHTML = '';
     }
@@ -207,15 +261,34 @@ function renderHand(hand, isInteractive) {
     const divHand = document.getElementById('my-hand');
     divHand.innerHTML = '';
     hand.forEach((card, index) => {
-        const content = getCardContent(card);
         const d = document.createElement('div'); 
         d.className = `card ${isInteractive ? 'interactive' : 'disabled'}`;
-        d.style = content.style;
-        d.innerHTML = !content.style.includes('url') ? card.value : ''; 
+        
+        // USANDO A NOVA LÓGICA DE CARTAS
+        d.innerHTML = createCardInnerHTML(card);
         
         if(isInteractive) {
             d.onclick = () => socket.emit('play_card', index);
         }
         divHand.appendChild(d);
     });
+}
+
+// Lógica do botão de música
+let isMusicPlaying = false;
+
+function toggleMusic() {
+    const bgAudio = document.getElementById('bg-music');
+    const btn = document.getElementById('music-control');
+    
+    if (isMusicPlaying) {
+        bgAudio.pause();
+        btn.innerText = "🔈"; 
+        isMusicPlaying = false;
+    } else {
+        bgAudio.volume = 0.3; 
+        bgAudio.play().catch(e => console.log("Interação necessária para tocar áudio"));
+        btn.innerText = "🔊"; 
+        isMusicPlaying = true;
+    }
 }
