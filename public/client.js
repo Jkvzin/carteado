@@ -203,7 +203,7 @@ function renderTable(state) {
         // --- AJUSTE DE POSIÇÃO ---
         // Se relPos é 0, é o jogador atual (parte de baixo).
         // Usamos um raio maior (44) para afastá-lo do centro, dando espaço para a aposta.
-        const radius = (relPos === 0) ? 44 : 38;
+        const radius = (relPos === 0) ? 52 : 40;
 
         const x = 50 + radius * Math.cos(angle);
         const y = 50 + radius * Math.sin(angle);
