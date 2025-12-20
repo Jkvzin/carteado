@@ -199,8 +199,15 @@ function renderTable(state) {
     state.players.forEach((p, i) => {
         const relPos = (i - baseIdx + totalP) % totalP;
         const angle = (relPos * (2*Math.PI/totalP)) + (Math.PI/2);
-        const x = 50 + 38 * Math.cos(angle);
-        const y = 50 + 38 * Math.sin(angle);
+        
+        // --- AJUSTE DE POSIÇÃO ---
+        // Se relPos é 0, é o jogador atual (parte de baixo).
+        // Usamos um raio maior (44) para afastá-lo do centro, dando espaço para a aposta.
+        const radius = (relPos === 0) ? 44 : 38;
+
+        const x = 50 + radius * Math.cos(angle);
+        const y = 50 + radius * Math.sin(angle);
+        // -------------------------
         
         const slot = document.createElement('div');
         slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''} ${i === state.currentTurnIndex && state.status === 'PLAYING' ? 'active-turn' : ''}`;
@@ -214,7 +221,7 @@ function renderTable(state) {
         
         const specLabel = p.isSpectator ? '<div style="font-size:10px; color:cyan;">(Olhando)</div>' : '';
 
-        // VIDAS COM CORAÇÕES
+        // VIDAS
         let livesDisplay = '';
         if (!p.isSpectator) {
             if (p.isEliminated) {
@@ -238,12 +245,13 @@ function renderTable(state) {
         if (played) {
             const c = document.createElement('div'); 
             c.className = 'card played-card';
-            // USANDO A NOVA LÓGICA DE CARTAS
             c.innerHTML = createCardInnerHTML(played.card);
             
+            // Ajusta a posição da carta jogada para ficar um pouco mais perto do centro que o jogador
+            const cardRadius = radius - 15; 
             c.style.position = 'absolute';
-            c.style.left = (50 + 15 * Math.cos(angle)) + '%';
-            c.style.top = (50 + 15 * Math.sin(angle)) + '%';
+            c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
+            c.style.top = (50 + cardRadius * Math.sin(angle)) + '%';
             container.appendChild(c);
         }
     });
