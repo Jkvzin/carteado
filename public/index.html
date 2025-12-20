@@ -10,10 +10,10 @@
     <div id="lobby-screen">
         <div class="login-box">
             <h1>TRUCO VIDAS</h1>
-            <div class="avatar-grid">
-                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" class="avatar-option selected">
-                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka" class="avatar-option">
-                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Bob" class="avatar-option">
+            <div class="avatar-grid" id="avatar-selection">
+                <img src="images/avatars/avatar1.png" class="avatar-option selected" onerror="this.src='https://api.dicebear.com/7.x/adventurer/svg?seed=Felix'">
+                <img src="images/avatars/avatar2.png" class="avatar-option" onerror="this.src='https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka'">
+                <img src="images/avatars/avatar3.png" class="avatar-option" onerror="this.src='https://api.dicebear.com/7.x/adventurer/svg?seed=Bob'">
             </div>
             <input type="text" id="username" placeholder="Seu Apelido" maxlength="10">
             <button onclick="joinGame()" class="btn-primary">ENTRAR</button>
