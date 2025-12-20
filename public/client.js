@@ -188,7 +188,8 @@ function renderTable(state) {
         const div = document.createElement('div');
         div.className = 'jackpot-warning';
         div.innerText = `ACUMULADO: +${state.jackpot}`;
-        div.style = "position:absolute; top:35%; left:50%; transform:translate(-50%, -50%); color:#ffd700; font-weight:bold; font-size:1.2em; text-shadow:1px 1px black; border:1px solid gold; padding:2px 10px; border-radius:5px; background:rgba(0,0,0,0.5);";
+        // Ajustei o top para 40% para não ficar exatamente no meio das cartas
+        div.style = "position:absolute; top:40%; left:50%; transform:translate(-50%, -50%); color:#ffd700; font-weight:bold; font-size:1.2em; text-shadow:1px 1px black; border:1px solid gold; padding:2px 10px; border-radius:5px; background:rgba(0,0,0,0.5); z-index: 5;";
         container.appendChild(div);
     }
 
@@ -200,14 +201,12 @@ function renderTable(state) {
         const relPos = (i - baseIdx + totalP) % totalP;
         const angle = (relPos * (2*Math.PI/totalP)) + (Math.PI/2);
         
-        // --- AJUSTE DE POSIÇÃO ---
-        // Se relPos é 0, é o jogador atual (parte de baixo).
-        // Usamos um raio maior (44) para afastá-lo do centro, dando espaço para a aposta.
-        const radius = (relPos === 0) ? 52 : 40;
+        // --- AJUSTE DE POSIÇÃO (VOLTAMOS UM POUCO PARA TRÁS) ---
+        // 45% é um ponto doce: não fica muito longe do centro, nem muito na borda.
+        const radius = (relPos === 0) ? 45 : 38;
 
         const x = 50 + radius * Math.cos(angle);
         const y = 50 + radius * Math.sin(angle);
-        // -------------------------
         
         const slot = document.createElement('div');
         slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''} ${i === state.currentTurnIndex && state.status === 'PLAYING' ? 'active-turn' : ''}`;
@@ -224,11 +223,8 @@ function renderTable(state) {
         // VIDAS
         let livesDisplay = '';
         if (!p.isSpectator) {
-            if (p.isEliminated) {
-                livesDisplay = '<div class="mini-lives">💀</div>'; 
-            } else {
-                livesDisplay = `<div class="mini-lives">${'❤️'.repeat(p.lives)}</div>`;
-            }
+            if (p.isEliminated) livesDisplay = '<div class="mini-lives">💀</div>'; 
+            else livesDisplay = `<div class="mini-lives">${'❤️'.repeat(p.lives)}</div>`;
         }
 
         slot.innerHTML = `
@@ -247,8 +243,8 @@ function renderTable(state) {
             c.className = 'card played-card';
             c.innerHTML = createCardInnerHTML(played.card);
             
-            // Ajusta a posição da carta jogada para ficar um pouco mais perto do centro que o jogador
-            const cardRadius = radius - 15; 
+            // Carta fica um pouco mais perto do centro (radius - 18)
+            const cardRadius = radius - 18; 
             c.style.position = 'absolute';
             c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
             c.style.top = (50 + cardRadius * Math.sin(angle)) + '%';
