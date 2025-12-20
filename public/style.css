@@ -119,3 +119,16 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
 .player-slot {
     justify-content: flex-start; /* Alinha tudo pro topo */
 }
+
+#credits {
+    position: fixed;
+    bottom: 10px;
+    right: 15px;
+    color: rgba(255, 255, 255, 0.4); /* Branco com transparência */
+    font-size: 14px;
+    font-family: 'Segoe UI', sans-serif;
+    font-weight: bold;
+    z-index: 10000; /* Fica por cima de tudo */
+    pointer-events: none; /* Importante: deixa clicar através do texto */
+    user-select: none; /* Não deixa selecionar o texto */
+}
