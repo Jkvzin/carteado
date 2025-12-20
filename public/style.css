@@ -132,3 +132,16 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
     pointer-events: none; /* Importante: deixa clicar através do texto */
     user-select: none; /* Não deixa selecionar o texto */
 }
+
+.avatar-grid {
+    display: flex;
+    flex-wrap: wrap;        /* A MÁGICA: Permite quebrar para a linha de baixo */
+    gap: 10px;              /* Espaço entre os avatares */
+    justify-content: center; /* Mantém tudo centralizado */
+    margin-bottom: 20px;
+    
+    /* Opcional: Limita a altura e cria barra de rolagem se tiver MUITOS */
+    max-height: 300px;      
+    overflow-y: auto;       
+    padding: 10px;          /* Espacinho interno */
+}
