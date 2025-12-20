@@ -52,7 +52,14 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
 }
 
 /* JOGADORES */
-.player-slot { position: absolute; transform: translate(-50%, -50%); text-align: center; width: 100px; }
+.player-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100px; /* Largura fixa para não variar */
+    z-index: 100; /* Fica acima da mesa */
+}
 .avatar-img { width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; object-fit: cover; background: #333; }
 .active-turn .avatar-img { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; animation: pulse 1s infinite; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
@@ -81,10 +88,23 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
 .bet-btn:hover { background: #007bff; border-color: #007bff; transform: scale(1.1); }
 
 /* NOTIFICAÇÃO */
-.notification { 
-    position: absolute; top: 20px; left: 50%; transform: translateX(-50%); 
-    background: rgba(0,0,0,0.7); padding: 10px 30px; border-radius: 20px; 
-    font-size: 1.2em; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+.notification {
+    position: fixed;
+    z-index: 3000; /* Número bem alto */
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 2px solid #ffd700;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+    pointer-events: none; /* Deixa clicar através dela */
+    
+    /* Posição Padrão (Celular): Centralizado no topo */
+    top: 12%; 
+    left: 50%; 
+    transform: translateX(-50%);
+    width: max-content;
 }
 
 .bet-btn.disabled-btn {
@@ -112,13 +132,14 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
 /* Adicione isso ao seu CSS */
 
 .stats-line {
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 8px;
-    margin-top: 2px;
+    background: rgba(0, 0, 0, 0.8);
     border: 1px solid #555;
+    padding: 2px 5px;
+    border-radius: 4px;
+    margin-top: -5px; /* Sobe um pouquinho para ficar colado no nome */
+    position: relative;
+    z-index: 102; /* Fica na frente da carta se precisar */
+    font-size: 11px;
     white-space: nowrap;
 }
 
@@ -214,4 +235,22 @@ input { padding: 12px; width: 80%; margin-bottom: 15px; border-radius: 5px; bord
 #music-control:hover {
     opacity: 1;
     transform: scale(1.1);
+}
+
+@media (min-width: 1024px) {
+    /* Mover a notificação para o lado direito */
+    .notification {
+        top: 20%;
+        left: auto; /* Anula o centralizado */
+        right: 5%;  /* Cola na direita */
+        transform: none;
+        font-size: 20px;
+        padding: 15px 30px;
+    }
+
+    /* Aumenta um pouco a mesa no PC para dar respiro */
+    #table-container {
+        width: 600px;
+        height: 600px;
+    }
 }
