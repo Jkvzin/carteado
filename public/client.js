@@ -181,6 +181,7 @@ function updateNotification(msg) {
 
 function renderTable(state) {
     const container = document.getElementById('table-container');
+    // Remove elementos antigos, exceto o vira-slot
     container.querySelectorAll('.player-slot, .played-card, .jackpot-warning').forEach(e => e.remove());
     
     // AVISO DE JACKPOT
@@ -188,25 +189,28 @@ function renderTable(state) {
         const div = document.createElement('div');
         div.className = 'jackpot-warning';
         div.innerText = `ACUMULADO: +${state.jackpot}`;
-        // Ajustei o top para 40% para não ficar exatamente no meio das cartas
         div.style = "position:absolute; top:40%; left:50%; transform:translate(-50%, -50%); color:#ffd700; font-weight:bold; font-size:1.2em; text-shadow:1px 1px black; border:1px solid gold; padding:2px 10px; border-radius:5px; background:rgba(0,0,0,0.5); z-index: 5;";
         container.appendChild(div);
     }
 
     const myIdx = state.players.findIndex(p => p.id === socket.id);
     const totalP = state.players.length;
-    const baseIdx = myIdx >= 0 ? myIdx : 0; 
 
     state.players.forEach((p, i) => {
-        const relPos = (i - baseIdx + totalP) % totalP;
-        const angle = (relPos * (2*Math.PI/totalP)) + (Math.PI/2);
+        // --- NOVA LÓGICA DE POSICIONAMENTO ---
+        // Calcula a posição relativa do jogador em relação a você
+        const relPos = (i - myIdx + totalP) % totalP;
         
-        // --- AJUSTE DE POSIÇÃO (VOLTAMOS UM POUCO PARA TRÁS) ---
-        // 45% é um ponto doce: não fica muito longe do centro, nem muito na borda.
-        const radius = (relPos === 0) ? 45 : 38;
+        // Divide o círculo em fatias iguais para o total de jogadores.
+        // O '+ Math.PI / 2' garante que você (relPos = 0) fique na posição inferior (90 graus)
+        const angle = (relPos * (2 * Math.PI / totalP)) + (Math.PI / 2);
+        
+        // Define o raio: o jogador local fica um pouco mais afastado do centro
+        const radius = (relPos === 0) ? 45 : 40;
 
         const x = 50 + radius * Math.cos(angle);
         const y = 50 + radius * Math.sin(angle);
+        // ---------------------------------------
         
         const slot = document.createElement('div');
         slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''} ${i === state.currentTurnIndex && state.status === 'PLAYING' ? 'active-turn' : ''}`;
@@ -243,7 +247,7 @@ function renderTable(state) {
             c.className = 'card played-card';
             c.innerHTML = createCardInnerHTML(played.card);
             
-            // Carta fica um pouco mais perto do centro (radius - 18)
+            // A carta jogada fica um pouco mais perto do centro que o jogador
             const cardRadius = radius - 18; 
             c.style.position = 'absolute';
             c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
