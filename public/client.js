@@ -1,15 +1,15 @@
 const socket = io();
 
-// Avatar padrão (caso a pessoa não clique em nada)
-let selectedAvatar = 'avatares/adam.jpg'; 
+// Define um avatar padrão local para evitar erros
+let selectedAvatar = 'images/avatars/adam.jpg'; 
 
-// Lógica de seleção de avatar no clique
+// Lógica de seleção de avatar
 document.querySelectorAll('.avatar-option').forEach(img => {
     img.onclick = () => {
         document.querySelectorAll('.avatar-option').forEach(i => i.classList.remove('selected'));
         img.classList.add('selected');
-        // Pega o caminho da imagem clicada
-        selectedAvatar = img.getAttribute('src');
+        // Pega o caminho relativo (ex: images/avatars/foto.jpg)
+        selectedAvatar = img.getAttribute('src'); 
     };
 });
 
@@ -35,14 +35,9 @@ socket.on('game_update', (state) => {
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('lobby-screen').style.display = 'flex';
         document.getElementById('game-over-screen').style.display = 'none';
-        
-        // Se voltamos pro lobby, para a música da vitória
-        const vicAudio = document.getElementById('victory-music');
-        if(!vicAudio.paused) { vicAudio.pause(); vicAudio.currentTime = 0; }
-        
-        // Se a música de fundo estava ligada, volta a tocar
-        const bgAudio = document.getElementById('bg-music');
-        if (isMusicPlaying && bgAudio.paused) bgAudio.play();
+
+        stopVictoryMusic();
+        playBackgroundMusic(); 
 
         const list = document.getElementById('players-list');
         list.innerHTML = state.players.map(p => `
@@ -60,23 +55,14 @@ socket.on('game_update', (state) => {
         }
     } 
     
-    // --- FIM DE JOGO (TELA DE CAMPEÃO) ---
+    // --- GAME OVER ---
     else if (state.status === 'GAME_OVER') {
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('game-over-screen').style.display = 'flex';
         
-        // Para música de fundo
-        const bgAudio = document.getElementById('bg-music');
-        bgAudio.pause();
+        stopBackgroundMusic();
+        playVictoryMusic();
 
-        // Toca música da vitória
-        const vicAudio = document.getElementById('victory-music');
-        if (vicAudio.paused) {
-            vicAudio.volume = 1.0;
-            vicAudio.play().catch(e => console.log("Erro som vitória:", e));
-        }
-
-        // Mostra dados do vencedor
         if (state.winner) {
             document.getElementById('winner-name').innerText = state.winner.name;
             document.getElementById('winner-avatar').src = state.winner.avatar;
@@ -87,19 +73,14 @@ socket.on('game_update', (state) => {
         }
     }
     
-    // --- JOGO RODANDO ---
+    // --- JOGO ---
     else {
         document.getElementById('lobby-screen').style.display = 'none';
         document.getElementById('game-over-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'block';
         
-        // Garante que música de vitória parou
-        const vicAudio = document.getElementById('victory-music');
-        if(!vicAudio.paused) { vicAudio.pause(); vicAudio.currentTime = 0; }
-
-        // Garante que música de fundo toca (se ativada)
-        const bgAudio = document.getElementById('bg-music');
-        if (isMusicPlaying && bgAudio.paused) bgAudio.play();
+        stopVictoryMusic();
+        playBackgroundMusic();
         
         renderTable(state);
         
@@ -138,22 +119,133 @@ socket.on('game_update', (state) => {
     }
 });
 
-// Mapas para desenhar o texto bonito caso a imagem falhe
+// --- SISTEMA DE POSIÇÕES FIXAS ---
+function getPlayerAngle(totalPlayers, index) {
+    // index 0 é sempre VOCÊ (Base/Sul)
+    
+    // 2 JOGADORES: Frente a frente
+    if (totalPlayers === 2) {
+        if (index === 0) return Math.PI / 2;    // Baixo (90 graus)
+        if (index === 1) return 3 * Math.PI / 2; // Topo (270 graus)
+    }
+    
+    // 3 JOGADORES: Triângulo
+    if (totalPlayers === 3) {
+        if (index === 0) return Math.PI / 2;      // Baixo
+        if (index === 1) return 5 * Math.PI / 4;  // Canto Superior Esquerdo (225 graus)
+        if (index === 2) return 7 * Math.PI / 4;  // Canto Superior Direito (315 graus)
+    }
+
+    // 4 JOGADORES: Cruz
+    if (totalPlayers === 4) {
+        const angles = [
+            Math.PI / 2,     // Baixo
+            Math.PI,         // Esquerda
+            3 * Math.PI / 2, // Topo
+            0                // Direita
+        ];
+        return angles[index];
+    }
+
+    // 5+ JOGADORES: Círculo Genérico (Fallback)
+    return (Math.PI / 2) + (index * (2 * Math.PI / totalPlayers));
+}
+
+function renderTable(state) {
+    const container = document.getElementById('table-container');
+    container.querySelectorAll('.player-slot, .played-card, .jackpot-warning').forEach(e => e.remove());
+    
+    if (state.jackpot > 0) {
+        const div = document.createElement('div');
+        div.className = 'jackpot-warning';
+        div.innerText = `ACUMULADO: +${state.jackpot}`;
+        div.style = "position:absolute; top:40%; left:50%; transform:translate(-50%, -50%); color:#ffd700; font-weight:bold; font-size:1.2em; text-shadow:1px 1px black; border:1px solid gold; padding:2px 10px; border-radius:5px; background:rgba(0,0,0,0.5); z-index: 5;";
+        container.appendChild(div);
+    }
+
+    // Filtra para garantir que a gente desenhe só quem está jogando (opcional, mas bom pra evitar bugs)
+    // Se quiser ver espectadores na mesa, tire o .filter
+    const myIdx = state.players.findIndex(p => p.id === socket.id);
+    const totalP = state.players.length;
+    const baseIdx = myIdx >= 0 ? myIdx : 0; 
+
+    state.players.forEach((p, i) => {
+        // Calcula índice relativo: 0=Eu, 1=Próximo, 2=Outro...
+        let relPos = (i - baseIdx + totalP) % totalP;
+        
+        // Pega o ângulo fixo perfeito
+        const angle = getPlayerAngle(totalP, relPos);
+        
+        // Distância do centro
+        const radius = (relPos === 0) ? 45 : 38;
+
+        const x = 50 + radius * Math.cos(angle);
+        const y = 50 + radius * Math.sin(angle);
+        
+        const slot = document.createElement('div');
+        slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''}`;
+        
+        if(state.status === 'PLAYING' && i === state.currentTurnIndex) slot.classList.add('active-turn');
+        if(state.status === 'BETTING' && i === state.bettingTurnIndex) slot.classList.add('active-turn');
+
+        slot.style.left = x+'%'; slot.style.top = y+'%';
+        
+        const statsLine = (p.bet !== -1 && !p.isSpectator) 
+            ? `<div class="stats-line">A: ${p.bet} | F: ${p.tricksWon}</div>` 
+            : '';
+        
+        const specLabel = p.isSpectator ? '<div style="font-size:10px; color:cyan;">(Olhando)</div>' : '';
+
+        let livesDisplay = '';
+        if (!p.isSpectator) {
+            if (p.isEliminated) livesDisplay = '<div class="mini-lives">💀</div>'; 
+            else livesDisplay = `<div class="mini-lives">${'❤️'.repeat(p.lives)}</div>`;
+        }
+
+        slot.innerHTML = `
+            ${livesDisplay} 
+            <img src="${p.avatar}" class="avatar-img">
+            <div style="text-shadow: 1px 1px 2px black; font-weight:bold; font-size: 14px;">${p.name}</div>
+            ${statsLine}
+            ${specLabel}
+        `;
+        container.appendChild(slot);
+        
+        // CARTA JOGADA
+        const played = state.tableCards.find(tc => tc.playerId === p.id);
+        if (played) {
+            const c = document.createElement('div'); 
+            c.className = 'card played-card';
+            c.innerHTML = createCardInnerHTML(played.card);
+            
+            const cardRadius = radius - 17; 
+            c.style.position = 'absolute';
+            c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
+            c.style.top = (50 + cardRadius * Math.sin(angle)) + '%';
+            container.appendChild(c);
+        }
+    });
+
+    const viraSlot = document.getElementById('vira-slot');
+    if(state.vira) {
+        viraSlot.innerHTML = `<div class="card">${createCardInnerHTML(state.vira)}</div>`;
+    } else {
+        viraSlot.innerHTML = '';
+    }
+}
+
+// --- FUNÇÕES AUXILIARES ---
 const suitSymbols = { 'ouros': '♦', 'espadas': '♠', 'copas': '♥', 'paus': '♣' };
 const suitColors = { 'ouros': 'suit-red', 'copas': 'suit-red', 'espadas': 'suit-black', 'paus': 'suit-black' };
 
-// NOVA FUNÇÃO: Gera HTML com imagem E texto de fundo (camadas)
 function createCardInnerHTML(card) {
     const imgPath = `images/${card.suit}_${card.value}.png`;
     const symbol = suitSymbols[card.suit] || '';
     const colorClass = suitColors[card.suit] || 'suit-black';
-    
     return `
         <div class="card-fallback ${colorClass}">
-            ${card.value}<br>
-            <span style="font-size:24px">${symbol}</span>
+            ${card.value}<br><span style="font-size:24px">${symbol}</span>
         </div>
-        
         <img src="${imgPath}" class="card-img-layer" onerror="this.style.display='none'">
     `;
 }
@@ -179,139 +271,53 @@ function updateNotification(msg) {
     document.getElementById('turn-notification').innerText = msg;
 }
 
-function renderTable(state) {
-    const container = document.getElementById('table-container');
-    // Limpa a mesa (exceto o vira)
-    container.querySelectorAll('.player-slot, .played-card, .jackpot-warning').forEach(e => e.remove());
-    
-    // AVISO DE JACKPOT
-    if (state.jackpot > 0) {
-        const div = document.createElement('div');
-        div.className = 'jackpot-warning';
-        div.innerText = `ACUMULADO: +${state.jackpot}`;
-        div.style = "position:absolute; top:40%; left:50%; transform:translate(-50%, -50%); color:#ffd700; font-weight:bold; font-size:1.2em; text-shadow:1px 1px black; border:1px solid gold; padding:2px 10px; border-radius:5px; background:rgba(0,0,0,0.5); z-index: 5;";
-        container.appendChild(div);
-    }
-
-    // Identifica quem sou eu na mesa
-    const myIdx = state.players.findIndex(p => p.id === socket.id);
-    const totalP = state.players.length;
-    // Se eu for espectador (myIdx = -1), a visão roda baseada no jogador 0
-    const baseIdx = myIdx >= 0 ? myIdx : 0; 
-
-    state.players.forEach((p, i) => {
-        // --- CÁLCULO DE POSIÇÃO CORRIGIDO ---
-        
-        // 1. Calcula a posição relativa (0 é você, 1 é o próximo, etc.)
-        // A lógica (i - baseIdx + totalP) % totalP garante que não dê número negativo
-        let relPos = (i - baseIdx + totalP) % totalP;
-        
-        // 2. Calcula o ângulo exato da fatia
-        // Math.PI / 2 = 90 graus (Posição Baixo/Sul - Onde você fica)
-        // (relPos * (2 * Math.PI / totalP)) = O quanto gira para cada jogador
-        const angle = (Math.PI / 2) + (relPos * (2 * Math.PI / totalP));
-        
-        // 3. Define a distância do centro (Raio)
-        // Você (0) fica um pouco mais longe (45%) para dar espaço para o HUD
-        // Os outros ficam um pouco mais perto (38%) para caber na tela
-        const radius = (relPos === 0) ? 45 : 38;
-
-        // 4. Converte ângulo polar para posições X e Y da tela (em %)
-        const x = 50 + radius * Math.cos(angle);
-        const y = 50 + radius * Math.sin(angle);
-        // -------------------------------------
-        
-        const slot = document.createElement('div');
-        // Adiciona classes para estilização
-        slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''}`;
-        
-        // Destaca quem está na vez de jogar
-        if(state.status === 'PLAYING' && i === state.currentTurnIndex) slot.classList.add('active-turn');
-        // Destaca quem está na vez de apostar
-        if(state.status === 'BETTING' && i === state.bettingTurnIndex) slot.classList.add('active-turn');
-
-        slot.style.left = x+'%'; 
-        slot.style.top = y+'%';
-        
-        const statsLine = (p.bet !== -1 && !p.isSpectator) 
-            ? `<div class="stats-line">A: ${p.bet} | F: ${p.tricksWon}</div>` 
-            : '';
-        
-        const specLabel = p.isSpectator ? '<div style="font-size:10px; color:cyan;">(Olhando)</div>' : '';
-
-        // MOSTRAR VIDAS
-        let livesDisplay = '';
-        if (!p.isSpectator) {
-            if (p.isEliminated) livesDisplay = '<div class="mini-lives">💀</div>'; 
-            else livesDisplay = `<div class="mini-lives">${'❤️'.repeat(p.lives)}</div>`;
-        }
-
-        slot.innerHTML = `
-            ${livesDisplay} 
-            <img src="${p.avatar}" class="avatar-img">
-            <div style="text-shadow: 1px 1px 2px black; font-weight:bold; font-size: 14px;">${p.name}</div>
-            ${statsLine}
-            ${specLabel}
-        `;
-        container.appendChild(slot);
-        
-        // POSICIONAR CARTA JOGADA NA MESA
-        const played = state.tableCards.find(tc => tc.playerId === p.id);
-        if (played) {
-            const c = document.createElement('div'); 
-            c.className = 'card played-card';
-            c.innerHTML = createCardInnerHTML(played.card);
-            
-            // A carta fica um pouco mais próxima do centro que o jogador (radius - 17)
-            const cardRadius = radius - 17; 
-            c.style.position = 'absolute';
-            c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
-            c.style.top = (50 + cardRadius * Math.sin(angle)) + '%';
-            container.appendChild(c);
-        }
-    });
-
-    // VIRA (Carta do meio)
-    const viraSlot = document.getElementById('vira-slot');
-    if(state.vira) {
-        viraSlot.innerHTML = `<div class="card">${createCardInnerHTML(state.vira)}</div>`;
-    } else {
-        viraSlot.innerHTML = '';
-    }
-}
-
 function renderHand(hand, isInteractive) {
     const divHand = document.getElementById('my-hand');
     divHand.innerHTML = '';
     hand.forEach((card, index) => {
         const d = document.createElement('div'); 
         d.className = `card ${isInteractive ? 'interactive' : 'disabled'}`;
-        
-        // USANDO A NOVA LÓGICA DE CARTAS
         d.innerHTML = createCardInnerHTML(card);
-        
-        if(isInteractive) {
-            d.onclick = () => socket.emit('play_card', index);
-        }
+        if(isInteractive) d.onclick = () => socket.emit('play_card', index);
         divHand.appendChild(d);
     });
 }
 
-// Lógica do botão de música
+// --- ÁUDIO ---
 let isMusicPlaying = false;
 
 function toggleMusic() {
     const bgAudio = document.getElementById('bg-music');
     const btn = document.getElementById('music-control');
-    
     if (isMusicPlaying) {
-        bgAudio.pause();
-        btn.innerText = "🔈"; 
+        stopBackgroundMusic();
+        btn.innerText = "🔈";
         isMusicPlaying = false;
     } else {
-        bgAudio.volume = 0.3; 
-        bgAudio.play().catch(e => console.log("Interação necessária para tocar áudio"));
-        btn.innerText = "🔊"; 
+        playBackgroundMusic();
+        btn.innerText = "🔊";
         isMusicPlaying = true;
     }
+}
+
+function playBackgroundMusic() {
+    if(!isMusicPlaying) return; 
+    const bgAudio = document.getElementById('bg-music');
+    if(bgAudio.paused) {
+        bgAudio.volume = 0.3;
+        bgAudio.play().catch(()=>{});
+    }
+}
+function stopBackgroundMusic() {
+    document.getElementById('bg-music').pause();
+}
+function playVictoryMusic() {
+    const vic = document.getElementById('victory-music');
+    vic.volume = 1.0;
+    vic.play().catch(()=>{});
+}
+function stopVictoryMusic() {
+    const vic = document.getElementById('victory-music');
+    vic.pause();
+    vic.currentTime = 0;
 }
