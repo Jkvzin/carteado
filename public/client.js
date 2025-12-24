@@ -181,7 +181,7 @@ function updateNotification(msg) {
 
 function renderTable(state) {
     const container = document.getElementById('table-container');
-    // Remove elementos antigos, exceto o vira-slot
+    // Limpa a mesa (exceto o vira)
     container.querySelectorAll('.player-slot, .played-card, .jackpot-warning').forEach(e => e.remove());
     
     // AVISO DE JACKPOT
@@ -193,30 +193,45 @@ function renderTable(state) {
         container.appendChild(div);
     }
 
+    // Identifica quem sou eu na mesa
     const myIdx = state.players.findIndex(p => p.id === socket.id);
     const totalP = state.players.length;
+    // Se eu for espectador (myIdx = -1), a visão roda baseada no jogador 0
+    const baseIdx = myIdx >= 0 ? myIdx : 0; 
 
     state.players.forEach((p, i) => {
-        // --- NOVA LÓGICA DE POSICIONAMENTO ---
-        // Calcula a posição relativa do jogador em relação a você
-        const relPos = (i - myIdx + totalP) % totalP;
+        // --- CÁLCULO DE POSIÇÃO CORRIGIDO ---
         
-        // Divide o círculo em fatias iguais para o total de jogadores.
-        // O '+ Math.PI / 2' garante que você (relPos = 0) fique na posição inferior (90 graus)
-        const angle = (relPos * (2 * Math.PI / totalP)) + (Math.PI / 2);
+        // 1. Calcula a posição relativa (0 é você, 1 é o próximo, etc.)
+        // A lógica (i - baseIdx + totalP) % totalP garante que não dê número negativo
+        let relPos = (i - baseIdx + totalP) % totalP;
         
-        // Define o raio: o jogador local fica um pouco mais afastado do centro
-        const radius = (relPos === 0) ? 45 : 40;
+        // 2. Calcula o ângulo exato da fatia
+        // Math.PI / 2 = 90 graus (Posição Baixo/Sul - Onde você fica)
+        // (relPos * (2 * Math.PI / totalP)) = O quanto gira para cada jogador
+        const angle = (Math.PI / 2) + (relPos * (2 * Math.PI / totalP));
+        
+        // 3. Define a distância do centro (Raio)
+        // Você (0) fica um pouco mais longe (45%) para dar espaço para o HUD
+        // Os outros ficam um pouco mais perto (38%) para caber na tela
+        const radius = (relPos === 0) ? 45 : 38;
 
+        // 4. Converte ângulo polar para posições X e Y da tela (em %)
         const x = 50 + radius * Math.cos(angle);
         const y = 50 + radius * Math.sin(angle);
-        // ---------------------------------------
+        // -------------------------------------
         
         const slot = document.createElement('div');
-        slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''} ${i === state.currentTurnIndex && state.status === 'PLAYING' ? 'active-turn' : ''}`;
+        // Adiciona classes para estilização
+        slot.className = `player-slot ${p.disconnected ? 'disconnected' : ''} ${p.isSpectator ? 'spectator' : ''}`;
+        
+        // Destaca quem está na vez de jogar
+        if(state.status === 'PLAYING' && i === state.currentTurnIndex) slot.classList.add('active-turn');
+        // Destaca quem está na vez de apostar
         if(state.status === 'BETTING' && i === state.bettingTurnIndex) slot.classList.add('active-turn');
 
-        slot.style.left = x+'%'; slot.style.top = y+'%';
+        slot.style.left = x+'%'; 
+        slot.style.top = y+'%';
         
         const statsLine = (p.bet !== -1 && !p.isSpectator) 
             ? `<div class="stats-line">A: ${p.bet} | F: ${p.tricksWon}</div>` 
@@ -224,7 +239,7 @@ function renderTable(state) {
         
         const specLabel = p.isSpectator ? '<div style="font-size:10px; color:cyan;">(Olhando)</div>' : '';
 
-        // VIDAS
+        // MOSTRAR VIDAS
         let livesDisplay = '';
         if (!p.isSpectator) {
             if (p.isEliminated) livesDisplay = '<div class="mini-lives">💀</div>'; 
@@ -240,15 +255,15 @@ function renderTable(state) {
         `;
         container.appendChild(slot);
         
-        // CARTA JOGADA
+        // POSICIONAR CARTA JOGADA NA MESA
         const played = state.tableCards.find(tc => tc.playerId === p.id);
         if (played) {
             const c = document.createElement('div'); 
             c.className = 'card played-card';
             c.innerHTML = createCardInnerHTML(played.card);
             
-            // A carta jogada fica um pouco mais perto do centro que o jogador
-            const cardRadius = radius - 18; 
+            // A carta fica um pouco mais próxima do centro que o jogador (radius - 17)
+            const cardRadius = radius - 17; 
             c.style.position = 'absolute';
             c.style.left = (50 + cardRadius * Math.cos(angle)) + '%';
             c.style.top = (50 + cardRadius * Math.sin(angle)) + '%';
@@ -256,7 +271,7 @@ function renderTable(state) {
         }
     });
 
-    // VIRA
+    // VIRA (Carta do meio)
     const viraSlot = document.getElementById('vira-slot');
     if(state.vira) {
         viraSlot.innerHTML = `<div class="card">${createCardInnerHTML(state.vira)}</div>`;
